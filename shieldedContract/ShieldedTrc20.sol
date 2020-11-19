@@ -245,6 +245,11 @@ contract ShieldedTRC20 {
         return (latestRoot, path);
     }
 
+    function getEncryptedNotes(uint256 position) public view returns(bytes32[24] memory) {
+        require(position < leafCount, "Position is out of range.");
+        return encryptedNotes[position]; 
+    }
+
     function ancestorLevel(uint256 leafIndex) private view returns (uint32) {
         uint256 nodeIndex1 = leafIndex + 2 ** 32 - 1;
         uint256 nodeIndex2 = leafCount + 2 ** 32 - 2;
