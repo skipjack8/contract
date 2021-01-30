@@ -28,6 +28,7 @@ contract ShieldedTRC20 {
     TokenTRC20 trc20Token;
     uint256[] blockNumbers;// store block numbers
     //max numbers to get when call getBlockNumbers, set100 first, and  can modify by using setMaxNumberPerCall()
+    //this field is also used to check if this contract supports optimized scan.
     uint256 public maxNumberPerCall = 100;
 
     event MintNewLeaf(uint256 position, bytes32 cm, bytes32 cv, bytes32 epk, bytes32[21] c);
