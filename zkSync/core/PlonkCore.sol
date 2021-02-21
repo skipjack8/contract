@@ -397,7 +397,7 @@ contract Plonk4VerifierWithAccessToDNext {
     }
 
     function batch_evaluate_lagrange_poly_out_of_domain(
-        uint256[] memory poly_nums,
+        uint256[] memory poly_nums,//0,1,2,...l-1. l是公开输入个数
         uint256 domain_size,
         PairingsBn254.Fr memory omega,
         PairingsBn254.Fr memory at
@@ -405,14 +405,14 @@ contract Plonk4VerifierWithAccessToDNext {
         PairingsBn254.Fr memory one = PairingsBn254.new_fr(1);
         PairingsBn254.Fr memory tmp_1 = PairingsBn254.new_fr(0);
         PairingsBn254.Fr memory tmp_2 = PairingsBn254.new_fr(domain_size);
-        PairingsBn254.Fr memory vanishing_at_z = at.pow(domain_size);
-        vanishing_at_z.sub_assign(one);
+        PairingsBn254.Fr memory vanishing_at_z = at.pow(domain_size);//z^n
+        vanishing_at_z.sub_assign(one);//z^n - 1
         // we can not have random point z be in domain
         require(vanishing_at_z.value != 0);
         PairingsBn254.Fr[] memory nums = new PairingsBn254.Fr[](poly_nums.length);
         PairingsBn254.Fr[] memory dens = new PairingsBn254.Fr[](poly_nums.length);
-        // numerators in a form omega^i * (z^n - 1)
-        // denoms in a form (z - omega^i) * N
+        // 分子是 omega^i * (z^n - 1)
+        // 分母是 (z - omega^i) * N
         for (uint256 i = 0; i < poly_nums.length; i++) {
             tmp_1 = omega.pow(poly_nums[i]); // power of omega
             nums[i].assign(vanishing_at_z);
@@ -422,14 +422,14 @@ contract Plonk4VerifierWithAccessToDNext {
             dens[i].sub_assign(tmp_1);
             dens[i].mul_assign(tmp_2); // mul by domain size
         }
-
+        //partial_products = {1, (z-omega^0)(z-omega^1)*N^2,(z-omega^1)(z-omega^2)*N^2..(z-omega^{l-3})(z-omega^{l-2})*N^2}
         PairingsBn254.Fr[] memory partial_products = new PairingsBn254.Fr[](poly_nums.length);
         partial_products[0].assign(PairingsBn254.new_fr(1));
         for (uint256 i = 1; i < dens.length - 1; i++) {
             partial_products[i].assign(dens[i - 1]);
             partial_products[i].mul_assign(dens[i]);
         }
-
+        // TODO: partial_products[partial_products.length - 1]
         tmp_2.assign(partial_products[partial_products.length - 1]);
         tmp_2.mul_assign(dens[dens.length - 1]);
         tmp_2 = tmp_2.inverse(); // tmp_2 contains a^-1 * b^-1 (with! the last one)
@@ -888,7 +888,7 @@ contract Plonk4VerifierWithAccessToDNext {
         }
 
         state.cached_lagrange_evals = batch_evaluate_lagrange_poly_out_of_domain(
-            lagrange_poly_numbers,
+            lagrange_poly_numbers,//0,1,2,3...l-1
             vk.domain_size,
             vk.omega,
             state.z
@@ -1099,18 +1099,18 @@ contract VerifierWithDeserialize is Plonk4VerifierWithAccessToDNext {
         }
 
         uint256 j = 0;
-        for (uint256 i = 0; i < STATE_WIDTH; i++) {
+        for (uint256 i = 0; i < STATE_WIDTH; i++) {//[a],[b],[c],[d]
             proof.wire_commitments[i] = PairingsBn254.new_g1_checked(serialized_proof[j], serialized_proof[j + 1]);
 
             j += 2;
         }
-
+        //[Z]
         proof.copy_permutation_grand_product_commitment = PairingsBn254.new_g1_checked(
             serialized_proof[j],
             serialized_proof[j + 1]
         );
         j += 2;
-
+        //[t1] [t2] [t3] [t4]
         for (uint256 i = 0; i < STATE_WIDTH; i++) {
             proof.quotient_poly_commitments[i] = PairingsBn254.new_g1_checked(
                 serialized_proof[j],
@@ -1119,13 +1119,13 @@ contract VerifierWithDeserialize is Plonk4VerifierWithAccessToDNext {
 
             j += 2;
         }
-
+        //a(z),b(z),c(z),d(z)
         for (uint256 i = 0; i < STATE_WIDTH; i++) {
             proof.wire_values_at_z[i] = PairingsBn254.new_fr(serialized_proof[j]);
 
             j += 1;
         }
-
+        //d(z*omega)
         for (uint256 i = 0; i < proof.wire_values_at_z_omega.length; i++) {
             proof.wire_values_at_z_omega[i] = PairingsBn254.new_fr(serialized_proof[j]);
 
@@ -1137,28 +1137,28 @@ contract VerifierWithDeserialize is Plonk4VerifierWithAccessToDNext {
 
             j += 1;
         }
-
+        //perm_a(z),perm_b(z),perm_c(z)
         for (uint256 i = 0; i < proof.permutation_polynomials_at_z.length; i++) {
             proof.permutation_polynomials_at_z[i] = PairingsBn254.new_fr(serialized_proof[j]);
 
             j += 1;
         }
-
+        //z(z*omega)
         proof.copy_grand_product_at_z_omega = PairingsBn254.new_fr(serialized_proof[j]);
 
         j += 1;
-
+        //t(z)
         proof.quotient_polynomial_at_z = PairingsBn254.new_fr(serialized_proof[j]);
 
         j += 1;
-
+        //r(z)
         proof.linearization_polynomial_at_z = PairingsBn254.new_fr(serialized_proof[j]);
 
         j += 1;
-
+        //[W(x)]
         proof.opening_at_z_proof = PairingsBn254.new_g1_checked(serialized_proof[j], serialized_proof[j + 1]);
         j += 2;
-
+         // [W‘(x)]
         proof.opening_at_z_omega_proof = PairingsBn254.new_g1_checked(serialized_proof[j], serialized_proof[j + 1]);
     }
 
